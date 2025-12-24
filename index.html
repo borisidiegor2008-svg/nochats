@@ -1,111 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>RED ANON CHAT</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RED_VOID // ANONYMOUS_CHAT</title>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <style>
+        :root {
+            --primary: #ff0000;
+            --bg-dark: #0a0000;
+            --bg-panel: #1a0000;
+            --text-glow: 0 0 10px rgba(255, 0, 0, 0.7);
+        }
 
-<style>
-body {
-  background: black;
-  color: red;
-  font-family: Courier, monospace;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
 
-.terminal {
-  width: 700px;
-  border: 2px solid red;
-  padding: 15px;
-  box-shadow: 0 0 25px red;
-}
+        body {
+            background-color: var(--bg-dark);
+            color: var(--primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-h1 {
-  text-align: center;
-  margin-bottom: 10px;
-}
+        /* Matrix/Glitch Effect Canvas */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.15;
+        }
 
-#messages {
-  height: 300px;
-  overflow-y: auto;
-  border: 1px solid red;
-  padding: 10px;
-  margin-bottom: 10px;
-}
+        /* Header Area */
+        header {
+            padding: 15px;
+            background: var(--bg-panel);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--text-glow);
+        }
 
-#input {
-  width: 100%;
-  background: black;
-  border: 1px solid red;
-  color: red;
-  padding: 8px;
-  outline: none;
-}
-</style>
+        .status {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            animation: blink 1s infinite;
+        }
+
+        /* Chat Window */
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+        }
+
+        .message {
+            background: rgba(40, 0, 0, 0.5);
+            padding: 10px;
+            border-left: 3px solid var(--primary);
+            max-width: 80%;
+            animation: glitch-in 0.3s ease-out;
+            word-wrap: break-word;
+        }
+
+        .meta {
+            font-size: 0.7rem;
+            margin-bottom: 5px;
+            color: #ff6666;
+        }
+
+        /* Input Area */
+        .input-area {
+            background: var(--bg-panel);
+            padding: 20px;
+            border-top: 2px solid var(--primary);
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            background: black;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 12px;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        button {
+            background: var(--primary);
+            color: black;
+            border: none;
+            padding: 0 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: white;
+            box-shadow: var(--text-glow);
+        }
+
+        /* Animations */
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        @keyframes glitch-in {
+            0% { transform: translateX(-10px); filter: hue-rotate(90deg); }
+            100% { transform: translateX(0); filter: hue-rotate(0deg); }
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.2rem; }
+            .message { max-width: 100%; }
+        }
+    </style>
 </head>
-
 <body>
-<div class="terminal">
-  <h1>RED // ANON CHAT</h1>
-  <div id="messages"></div>
-  <input id="input" placeholder="> type message..." />
+
+<canvas id="matrix-bg"></canvas>
+
+<header>
+    <div>
+        <h1>🔴 RED_VOID</h1>
+        <div class="meta">🕶️ ID: <span id="anon-id">...</span></div>
+    </div>
+    <div class="status">SYSTEM_ACTIVE</div>
+</header>
+
+<div id="chat-container">
+    <div class="message">
+        <div class="meta">SYSTEM // 00:00</div>
+        Добро пожаловать в анонимный сектор. Сообщения очищаются каждые 24 часа.
+    </div>
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<div class="input-area">
+    <input type="text" id="msg-input" placeholder="Введите сообщение..." maxlength="300">
+    <button id="send-btn">SEND</button>
+</div>
 
 <script>
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    // --- КОНФИГУРАЦИЯ ---
+    // Для работы "по-настоящему" вставьте ключ от ably.com
+    // Если ключа нет, чат будет работать в режиме локальной имитации.
+    const API_KEY = 'ВАШ_ABLY_API_KEY_ТУТ'; 
+    const ANON_ID = 'UID-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    document.getElementById('anon-id').innerText = ANON_ID;
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAWX6aQ1SKn62r4pNchEVgDcXiv27sm_Qs",
-  authDomain: "sector-c5e22.firebaseapp.com",
-  databaseURL: "https://sector-c5e22-default-rtdb.firebaseio.com",
-  projectId: "sector-c5e22",
-  storageBucket: "sector-c5e22.firebasestorage.app",
-  messagingSenderId: "26133592596",
-  appId: "1:26133592596:web:50c3744d2b6f2d8deac501",
-  measurementId: "G-GH9J0P00M8"
-};
+    // --- MATRIX EFFECT ---
+    const canvas = document.getElementById('matrix-bg');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const chars = "01010101ABCDEF";
+    const fontSize = 14;
+    const columns = canvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+    function drawMatrix() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#300"; // Темно-красный для матрицы
+        ctx.font = fontSize + "px monospace";
+        for (let i = 0; i < drops.length; i++) {
+            const text = chars.charAt(Math.floor(Math.random() * chars.length));
+            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        }
+    }
+    setInterval(drawMatrix, 50);
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const chatRef = db.ref("messages");
+    // --- ЛОГИКА ЧАТА ---
+    const chatContainer = document.getElementById('chat-container');
+    const input = document.getElementById('msg-input');
+    const sendBtn = document.getElementById('send-btn');
 
-const input = document.getElementById("input");
-const messages = document.getElementById("messages");
+    let lastMessageTime = 0;
 
-// Send
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter" && input.value.trim()) {
-    chatRef.push({
-      text: input.value
-    });
-    input.value = "";
-  }
-});
+    function addMessage(id, text, isSystem = false) {
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message';
+        msgDiv.innerHTML = `
+            <div class="meta">${isSystem ? 'SYSTEM' : '🕶️ ' + id} // ${time}</div>
+            <div class="content">${escapeHTML(text)}</div>
+        `;
+        chatContainer.appendChild(msgDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
 
-// Receive (REAL TIME)
-chatRef.limitToLast(50).on("child_added", snap => {
-  const div = document.createElement("div");
-  div.textContent = "> " + snap.val().text;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
-});
+        // Авто-очистка (удаление старых сообщений если их > 50 для производительности)
+        if (chatContainer.children.length > 50) {
+            chatContainer.removeChild(chatContainer.children[0]);
+        }
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    // Анти-спам и отправка
+    async function sendMessage() {
+        const text = input.value.trim();
+        const now = Date.now();
+
+        if (!text) return;
+        if (now - lastMessageTime < 2000) { // 2 секунды КД
+            addMessage('SYS', '🚫 ANTI-SPAM: Подождите 2 сек.', true);
+            return;
+        }
+
+        // Тут была бы логика Ably/Socket.io
+        // Для примера выводим локально:
+        addMessage(ANON_ID, text);
+        
+        input.value = '';
+        lastMessageTime = now;
+    }
+
+    sendBtn.onclick = sendMessage;
+    input.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+
+    // Имитация авто-очистки консоли
+    setInterval(() => {
+        console.clear();
+        console.log("%c RED_VOID SYSTEM ACTIVE", "color: red; font-size: 20px; font-weight: bold;");
+    }, 60000);
+
 </script>
 </body>
 </html>
-
