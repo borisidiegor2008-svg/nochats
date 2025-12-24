@@ -10,15 +10,10 @@
             --primary: #ff0000;
             --bg-dark: #0a0000;
             --bg-panel: #1a0000;
-            --text-glow: 0 0 10px rgba(255, 0, 0, 0.7);
+            --text-glow: 0 0 12px rgba(255, 0, 0, 0.8);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Courier New', Courier, monospace;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', monospace; }
 
         body {
             background-color: var(--bg-dark);
@@ -29,16 +24,12 @@
             overflow: hidden;
         }
 
-        /* Matrix/Glitch Effect Canvas */
         #matrix-bg {
             position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1;
-            opacity: 0.15;
+            top: 0; left: 0; z-index: -1;
+            opacity: 0.2;
         }
 
-        /* Header Area */
         header {
             padding: 15px;
             background: var(--bg-panel);
@@ -49,43 +40,32 @@
             box-shadow: var(--text-glow);
         }
 
-        .status {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            animation: blink 1s infinite;
-        }
-
-        /* Chat Window */
         #chat-container {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             scrollbar-width: thin;
             scrollbar-color: var(--primary) transparent;
         }
 
         .message {
-            background: rgba(40, 0, 0, 0.5);
-            padding: 10px;
-            border-left: 3px solid var(--primary);
-            max-width: 80%;
-            animation: glitch-in 0.3s ease-out;
+            background: rgba(30, 0, 0, 0.7);
+            padding: 12px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-left: 4px solid var(--primary);
+            max-width: 85%;
+            animation: glitch 0.2s ease;
             word-wrap: break-word;
         }
 
-        .meta {
-            font-size: 0.7rem;
-            margin-bottom: 5px;
-            color: #ff6666;
-        }
+        .meta { font-size: 0.75rem; margin-bottom: 6px; color: #ff5555; font-weight: bold; }
 
-        /* Input Area */
         .input-area {
             background: var(--bg-panel);
-            padding: 20px;
+            padding: 15px;
             border-top: 2px solid var(--primary);
             display: flex;
             gap: 10px;
@@ -93,41 +73,35 @@
 
         input {
             flex: 1;
-            background: black;
+            background: #000;
             border: 1px solid var(--primary);
             color: var(--primary);
             padding: 12px;
             outline: none;
-            font-size: 1rem;
+            box-shadow: inset 0 0 5px rgba(255,0,0,0.2);
         }
 
         button {
             background: var(--primary);
-            color: black;
+            color: #000;
             border: none;
-            padding: 0 20px;
+            padding: 0 25px;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
+            text-transform: uppercase;
         }
 
-        button:hover {
-            background: white;
-            box-shadow: var(--text-glow);
+        button:active { transform: scale(0.95); }
+
+        @keyframes glitch {
+            0% { transform: skew(5deg); opacity: 0; }
+            100% { transform: skew(0deg); opacity: 1; }
         }
 
-        /* Animations */
-        @keyframes blink { 50% { opacity: 0; } }
-        
-        @keyframes glitch-in {
-            0% { transform: translateX(-10px); filter: hue-rotate(90deg); }
-            100% { transform: translateX(0); filter: hue-rotate(0deg); }
-        }
-
-        /* Mobile Optimization */
+        /* Mobile */
         @media (max-width: 600px) {
-            header h1 { font-size: 1.2rem; }
             .message { max-width: 100%; }
+            header h1 { font-size: 1rem; }
         }
     </style>
 </head>
@@ -137,46 +111,103 @@
 
 <header>
     <div>
-        <h1>🔴 RED_VOID</h1>
-        <div class="meta">🕶️ ID: <span id="anon-id">...</span></div>
+        <h1>[ RED_VOID_NETWORK ]</h1>
+        <div class="meta">🕶️ ANON-ID: <span id="anon-id">...</span></div>
     </div>
-    <div class="status">SYSTEM_ACTIVE</div>
+    <div id="connection-status" style="font-size: 0.7rem; color: #555;">CONNECTING...</div>
 </header>
 
-<div id="chat-container">
-    <div class="message">
-        <div class="meta">SYSTEM // 00:00</div>
-        Добро пожаловать в анонимный сектор. Сообщения очищаются каждые 24 часа.
-    </div>
-</div>
+<div id="chat-container"></div>
 
 <div class="input-area">
-    <input type="text" id="msg-input" placeholder="Введите сообщение..." maxlength="300">
+    <input type="text" id="msg-input" placeholder="ACCESS DATA LINE..." maxlength="500">
     <button id="send-btn">SEND</button>
 </div>
 
 <script>
-    // --- КОНФИГУРАЦИЯ ---
-    // Для работы "по-настоящему" вставьте ключ от ably.com
-    // Если ключа нет, чат будет работать в режиме локальной имитации.
-    const API_KEY = 'ВАШ_ABLY_API_KEY_ТУТ'; 
-    const ANON_ID = 'UID-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    // --- НАСТРОЙКИ ---
+    // Вставьте ваш ключ сюда, чтобы чат работал между разными устройствами!
+    const API_KEY = 'jDgMYA.joglYA:ZnmgoLWpNmiUUn_lV0WrZ5hsOOx8rYk4Yc2wJ2qXi3U'; 
+    const CHANNEL_NAME = 'global-anonymous-chat';
+    
+    const ANON_ID = 'X-' + Math.random().toString(36).substr(2, 5).toUpperCase();
     document.getElementById('anon-id').innerText = ANON_ID;
+
+    // --- ИНИЦИАЛИЗАЦИЯ СЕТИ ---
+    let channel;
+    if (API_KEY === 'ВАШ_ABLY_API_KEY') {
+        alert("ОШИБКА: Нужно вставить API_KEY из ably.com в код, чтобы сообщения летали между устройствами.");
+    } else {
+        const ably = new Ably.Realtime(API_KEY);
+        channel = ably.channels.get(CHANNEL_NAME);
+
+        ably.connection.on('connected', () => {
+            document.getElementById('connection-status').innerText = '🔴 ONLINE';
+            document.getElementById('connection-status').style.color = 'red';
+        });
+
+        // СЛУШАЕМ СООБЩЕНИЯ (тут они прилетают с других устройств)
+        channel.subscribe('msg', (message) => {
+            renderMessage(message.data.sender, message.data.text);
+        });
+    }
+
+    // --- ФУНКЦИИ ---
+    function renderMessage(sender, text) {
+        const container = document.getElementById('chat-container');
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message';
+        msgDiv.innerHTML = `
+            <div class="meta">${sender === ANON_ID ? 'YOU' : '🕶️ ' + sender} // ${time}</div>
+            <div class="content">${escapeHTML(text)}</div>
+        `;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    let lastSend = 0;
+    async function sendMessage() {
+        const input = document.getElementById('msg-input');
+        const text = input.value.trim();
+        const now = Date.now();
+
+        if (!text || !channel) return;
+
+        // АНТИ-СПАМ (2 секунды)
+        if (now - lastSend < 2000) {
+            alert("SYSTEM ERROR: TOO MANY REQUESTS");
+            return;
+        }
+
+        // ОТПРАВЛЯЕМ В СЕТЬ
+        channel.publish('msg', { sender: ANON_ID, text: text });
+        
+        input.value = '';
+        lastSend = now;
+    }
+
+    document.getElementById('send-btn').onclick = sendMessage;
+    document.getElementById('msg-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
 
     // --- MATRIX EFFECT ---
     const canvas = document.getElementById('matrix-bg');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const chars = "01010101ABCDEF";
-    const fontSize = 14;
+    const chars = "ｦｱｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ23456789";
+    const fontSize = 16;
     const columns = canvas.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
 
-    function drawMatrix() {
+    function draw() {
         ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#300"; // Темно-красный для матрицы
+        ctx.fillStyle = "#f00";
         ctx.font = fontSize + "px monospace";
         for (let i = 0; i < drops.length; i++) {
             const text = chars.charAt(Math.floor(Math.random() * chars.length));
@@ -185,64 +216,7 @@
             drops[i]++;
         }
     }
-    setInterval(drawMatrix, 50);
-
-    // --- ЛОГИКА ЧАТА ---
-    const chatContainer = document.getElementById('chat-container');
-    const input = document.getElementById('msg-input');
-    const sendBtn = document.getElementById('send-btn');
-
-    let lastMessageTime = 0;
-
-    function addMessage(id, text, isSystem = false) {
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message';
-        msgDiv.innerHTML = `
-            <div class="meta">${isSystem ? 'SYSTEM' : '🕶️ ' + id} // ${time}</div>
-            <div class="content">${escapeHTML(text)}</div>
-        `;
-        chatContainer.appendChild(msgDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-
-        // Авто-очистка (удаление старых сообщений если их > 50 для производительности)
-        if (chatContainer.children.length > 50) {
-            chatContainer.removeChild(chatContainer.children[0]);
-        }
-    }
-
-    function escapeHTML(str) {
-        return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
-    // Анти-спам и отправка
-    async function sendMessage() {
-        const text = input.value.trim();
-        const now = Date.now();
-
-        if (!text) return;
-        if (now - lastMessageTime < 2000) { // 2 секунды КД
-            addMessage('SYS', '🚫 ANTI-SPAM: Подождите 2 сек.', true);
-            return;
-        }
-
-        // Тут была бы логика Ably/Socket.io
-        // Для примера выводим локально:
-        addMessage(ANON_ID, text);
-        
-        input.value = '';
-        lastMessageTime = now;
-    }
-
-    sendBtn.onclick = sendMessage;
-    input.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
-
-    // Имитация авто-очистки консоли
-    setInterval(() => {
-        console.clear();
-        console.log("%c RED_VOID SYSTEM ACTIVE", "color: red; font-size: 20px; font-weight: bold;");
-    }, 60000);
-
+    setInterval(draw, 40);
 </script>
 </body>
 </html>
