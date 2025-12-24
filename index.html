@@ -1,81 +1,14 @@
-// =========================
-// server.js (Node.js + Socket.io)
-// =========================
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-app.use(express.static("public"));
-
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  socket.on("chatMessage", (msg) => {
-    io.emit("chatMessage", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
-});
-
-server.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
-});
-
-// =========================
-// package.json
-// =========================
-{
-  "name": "anonymous-hacker-chat",
-  "version": "1.0.0",
-  "description": "Anonymous real-time group chat",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2"
-  }
-}
-
-// =========================
-// public/index.html
-// =========================
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Anonymous Hacker Chat</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="terminal">
-    <h1>RED // ANONYMOUS CHAT</h1>
-    <div id="messages"></div>
-    <form id="chat-form">
-      <input id="input" autocomplete="off" placeholder="> type message..." />
-      <button>SEND</button>
-    </form>
-  </div>
+<meta charset="UTF-8">
+<title>RED ANON CHAT</title>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
-</body>
-</html>
-
-// =========================
-// public/style.css
-// =========================
+<style>
 body {
   background: black;
   color: red;
-  font-family: "Courier New", monospace;
+  font-family: Courier, monospace;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -83,11 +16,10 @@ body {
 }
 
 .terminal {
-  width: 80%;
-  max-width: 800px;
+  width: 700px;
   border: 2px solid red;
-  padding: 20px;
-  box-shadow: 0 0 20px red;
+  padding: 15px;
+  box-shadow: 0 0 25px red;
 }
 
 h1 {
@@ -103,53 +35,60 @@ h1 {
   margin-bottom: 10px;
 }
 
-#messages div {
-  margin-bottom: 5px;
-}
-
-#chat-form {
-  display: flex;
-}
-
 #input {
-  flex: 1;
+  width: 100%;
   background: black;
   border: 1px solid red;
   color: red;
-  padding: 10px;
+  padding: 8px;
+  outline: none;
 }
+</style>
+</head>
 
-button {
-  background: red;
-  color: black;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-}
+<body>
+<div class="terminal">
+  <h1>RED // ANON CHAT</h1>
+  <div id="messages"></div>
+  <input id="input" placeholder="> type message..." />
+</div>
 
-button:hover {
-  background: darkred;
-}
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-// =========================
-// public/script.js
-// =========================
-const socket = io();
-const form = document.getElementById("chat-form");
+<script>
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE.firebaseapp.com",
+  databaseURL: "https://PASTE.firebaseio.com",
+  projectId: "PASTE",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const chatRef = db.ref("messages");
+
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  if (input.value) {
-    socket.emit("chatMessage", input.value);
+// Send
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && input.value.trim()) {
+    chatRef.push({
+      text: input.value
+    });
     input.value = "";
   }
 });
 
-socket.on("chatMessage", (msg) => {
-  const item = document.createElement("div");
-  item.textContent = "> " + msg;
-  messages.appendChild(item);
+// Receive (REAL TIME)
+chatRef.limitToLast(50).on("child_added", snap => {
+  const div = document.createElement("div");
+  div.textContent = "> " + snap.val().text;
+  messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 });
+</script>
+</body>
+</html>
