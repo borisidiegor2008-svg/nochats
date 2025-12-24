@@ -1,151 +1,155 @@
+// =========================
+// server.js (Node.js + Socket.io)
+// =========================
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.static("public"));
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  socket.on("chatMessage", (msg) => {
+    io.emit("chatMessage", msg);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+server.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+
+// =========================
+// package.json
+// =========================
+{
+  "name": "anonymous-hacker-chat",
+  "version": "1.0.0",
+  "description": "Anonymous real-time group chat",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}
+
+// =========================
+// public/index.html
+// =========================
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RED_LINE_TERMINAL_FINAL</title>
-    <style>
-        /* Основной стиль */
-        body { 
-            background: #1a0f0f; 
-            color: #f5f5dc; 
-            font-family: 'Courier New', monospace; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-        }
-
-        /* Полоска статуса сверху */
-        .status-bar {
-            padding: 12px;
-            background: #ff4444;
-            color: #000;
-            font-weight: bold;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-
-        /* Окно чата */
-        #chat { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 25px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 12px; 
-            background: rgba(0, 0, 0, 0.4);
-        }
-
-        /* Стиль сообщения */
-        .msg { 
-            padding: 12px 18px; 
-            border-left: 4px solid #ff4444; 
-            background: rgba(255, 0, 0, 0.08); 
-            font-size: 18px; /* Увеличенный текст сообщений */
-            line-height: 1.4;
-        }
-
-        .time { color: #ff4444; opacity: 0.6; font-size: 12px; margin-right: 10px; }
-
-        /* Нижняя панель ввода */
-        .input-area { 
-            background: #000; 
-            padding: 20px; 
-            display: flex; 
-            gap: 15px;
-            border-top: 2px solid #ff4444;
-        }
-
-        /* ОГРОМНАЯ СТРОКА ВВОДА */
-        input { 
-            flex: 1; 
-            background: #111; 
-            border: 1px solid #333; 
-            color: #f5f5dc; 
-            padding: 15px 20px; 
-            font-size: 20px; /* Большой текст при наборе */
-            font-family: inherit;
-            outline: none;
-        }
-
-        input:focus { border-color: #ff4444; box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
-
-        /* Кнопка отправки */
-        button { 
-            background: #ff4444; 
-            color: #000; 
-            border: none; 
-            padding: 0 30px; 
-            font-weight: bold; 
-            font-size: 18px; 
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-
-        button:hover { background: #fff; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Anonymous Hacker Chat</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="terminal">
+    <h1>RED // ANONYMOUS CHAT</h1>
+    <div id="messages"></div>
+    <form id="chat-form">
+      <input id="input" autocomplete="off" placeholder="> type message..." />
+      <button>SEND</button>
+    </form>
+  </div>
 
-    <div class="status-bar" id="st">
-        ПОДКЛЮЧЕНИЕ К СЕТИ RED_LINE...
-    </div>
-    
-    <div id="chat"></div>
-
-    <div class="input-area">
-        <input type="text" id="inp" placeholder="Введите ваше сообщение здесь..." autocomplete="off">
-        <button id="btn">ОТПРАВИТЬ</button>
-    </div>
-
-    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-    <script>
-        // Ключ связи встроен (бесплатно)
-        const ably = new Ably.Realtime('8O_S_A.Yp-u_w:3YvP3iS7vjF9YV6V');
-        const channel = ably.channels.get('global-chat-room');
-        
-        const chat = document.getElementById('chat');
-        const inp = document.getElementById('inp');
-        const btn = document.getElementById('btn');
-        const st = document.getElementById('st');
-
-        // Когда чат готов
-        ably.connection.on('connected', () => {
-            st.innerText = "СТАТУС: В СЕТИ // СООБЩЕНИЯ ДОСТАВЛЯЮТСЯ МГНОВЕННО";
-        });
-
-        // Функция отрисовки сообщения
-        function addMessage(text) {
-            const d = document.createElement('div');
-            d.className = 'msg';
-            const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            d.innerHTML = `<span class="time">[${now}]</span> <span>${text}</span>`;
-            chat.appendChild(d);
-            chat.scrollTop = chat.scrollHeight; // Автопрокрутка вниз
-        }
-
-        // Получение сообщений от других
-        channel.subscribe('msg', (message) => {
-            addMessage(message.data);
-        });
-
-        // Функция отправки
-        function send() {
-            const val = inp.value.trim();
-            if (val) {
-                channel.publish('msg', val); // Публикуем на сервер
-                inp.value = ''; // Чистим строку
-                inp.focus();
-            }
-        }
-
-        // Обработка клика и Enter
-        btn.onclick = send;
-        inp.onkeypress = (e) => { if(e.key === 'Enter') send(); };
-
-        // Фокус на строку при открытии
-        window.onload = () => inp.focus();
-    </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
+
+// =========================
+// public/style.css
+// =========================
+body {
+  background: black;
+  color: red;
+  font-family: "Courier New", monospace;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.terminal {
+  width: 80%;
+  max-width: 800px;
+  border: 2px solid red;
+  padding: 20px;
+  box-shadow: 0 0 20px red;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+#messages {
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid red;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+#messages div {
+  margin-bottom: 5px;
+}
+
+#chat-form {
+  display: flex;
+}
+
+#input {
+  flex: 1;
+  background: black;
+  border: 1px solid red;
+  color: red;
+  padding: 10px;
+}
+
+button {
+  background: red;
+  color: black;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: darkred;
+}
+
+// =========================
+// public/script.js
+// =========================
+const socket = io();
+const form = document.getElementById("chat-form");
+const input = document.getElementById("input");
+const messages = document.getElementById("messages");
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (input.value) {
+    socket.emit("chatMessage", input.value);
+    input.value = "";
+  }
+});
+
+socket.on("chatMessage", (msg) => {
+  const item = document.createElement("div");
+  item.textContent = "> " + msg;
+  messages.appendChild(item);
+  messages.scrollTop = messages.scrollHeight;
+});
